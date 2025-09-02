@@ -101,9 +101,11 @@ export const Canvas = ({
       console.log('Object modified');
     });
 
-    // Initialize drawing brush
-    canvas.freeDrawingBrush.color = theme === "minimal" ? "#333333" : "#ffffff";
-    canvas.freeDrawingBrush.width = 3;
+    // Initialize drawing brush - check if it exists first
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = theme === "minimal" ? "#333333" : "#ffffff";
+      canvas.freeDrawingBrush.width = 3;
+    }
 
     onCanvasReady(canvas);
     toast(`${format} canvas ready!`);
@@ -120,6 +122,12 @@ export const Canvas = ({
   useEffect(() => {
     if (fabricCanvasRef.current) {
       fabricCanvasRef.current.backgroundColor = getThemeBackground();
+      
+      // Update brush color when theme changes
+      if (fabricCanvasRef.current.freeDrawingBrush) {
+        fabricCanvasRef.current.freeDrawingBrush.color = theme === "minimal" ? "#333333" : "#ffffff";
+      }
+      
       fabricCanvasRef.current.renderAll();
     }
   }, [theme]);
