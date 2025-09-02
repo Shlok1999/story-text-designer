@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, Calendar } from "lucide-react";
-import { Project } from "./InstagramEditor";
+import { Project, Page } from "./InstagramEditor";
 import { formatDistanceToNow } from "date-fns";
 
 interface SidebarProps {
@@ -89,6 +89,14 @@ export const Sidebar = ({
                       >
                         {project.theme}
                       </Badge>
+                      {project.pages.length > 1 && (
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs"
+                        >
+                          {project.pages.length} pages
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   

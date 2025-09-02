@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Canvas as FabricCanvas, Textbox, FabricImage } from "fabric";
-import { CanvasFormat, Theme, Project } from "./InstagramEditor";
+import { CanvasFormat, Theme, Page } from "./InstagramEditor";
 import { toast } from "sonner";
 
 interface CanvasProps {
@@ -8,7 +8,7 @@ interface CanvasProps {
   height: number;
   theme: Theme;
   format: CanvasFormat;
-  project: Project | null;
+  page: Page | null;
   onCanvasReady: (canvas: FabricCanvas) => void;
 }
 
@@ -17,7 +17,7 @@ export const Canvas = ({
   height, 
   theme, 
   format, 
-  project, 
+  page, 
   onCanvasReady 
 }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -70,8 +70,8 @@ export const Canvas = ({
     fabricCanvasRef.current = canvas;
 
     // Load project data if available
-    if (project?.canvasData) {
-      canvas.loadFromJSON(project.canvasData, () => {
+    if (page?.canvasData) {
+      canvas.loadFromJSON(page.canvasData, () => {
         canvas.renderAll();
       });
     } else {
@@ -116,7 +116,7 @@ export const Canvas = ({
         fabricCanvasRef.current = null;
       }
     };
-  }, [width, height, theme, format, project?.id]);
+  }, [width, height, theme, format, page?.id]);
 
   // Update theme when it changes
   useEffect(() => {
