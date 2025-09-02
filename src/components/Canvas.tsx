@@ -12,22 +12,35 @@ interface CanvasProps {
   onCanvasReady: (canvas: FabricCanvas) => void;
 }
 
-export const Canvas = ({ 
-  width, 
-  height, 
-  theme, 
-  format, 
-  project, 
-  onCanvasReady 
+export const Canvas = ({
+  width,
+  height,
+  theme,
+  format,
+  project,
+  onCanvasReady
 }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
 
   // Theme backgrounds
-  const getThemeBackground = () => {
+  // Utility: Fabric-compatible background
+  const getThemeBackground = (canvas?: FabricCanvas) => {
     switch (theme) {
       case "instagram":
-        return "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)";
+        return canvas?.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!) || null;
+      case "ocean":
+        return canvas?.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!) || null;
+      case "sunset":
+        return canvas?.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!) || null;
+      case "forest":
+        return canvas?.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!) || null;
+      case "neon":
+        return canvas?.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!) || null;
+      case "pastel":
+        return canvas?.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!) || null;
+      case "royal":
+        return canvas?.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!) || null;
       case "minimal":
         return "#ffffff";
       case "dark":
@@ -36,6 +49,46 @@ export const Canvas = ({
         return "#ffffff";
     }
   };
+
+  // Helper to apply gradient stops
+  const applyGradientStops = (gradient: CanvasGradient | null, type: string) => {
+    if (!gradient) return null;
+
+    switch (type) {
+      case "instagram":
+        gradient.addColorStop(0, "#833ab4");
+        gradient.addColorStop(0.5, "#fd1d1d");
+        gradient.addColorStop(1, "#fcb045");
+        break;
+      case "ocean":
+        gradient.addColorStop(0, "#2E3192");
+        gradient.addColorStop(1, "#1BFFFF");
+        break;
+      case "sunset":
+        gradient.addColorStop(0, "#ff7e5f");
+        gradient.addColorStop(1, "#feb47b");
+        break;
+      case "forest":
+        gradient.addColorStop(0, "#134E5E");
+        gradient.addColorStop(1, "#71B280");
+        break;
+      case "neon":
+        gradient.addColorStop(0, "#00f260");
+        gradient.addColorStop(1, "#0575e6");
+        break;
+      case "pastel":
+        gradient.addColorStop(0, "#a1c4fd");
+        gradient.addColorStop(1, "#c2e9fb");
+        break;
+      case "royal":
+        gradient.addColorStop(0, "#141E30");
+        gradient.addColorStop(1, "#243B55");
+        break;
+    }
+
+    return gradient;
+  };
+
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -87,7 +140,7 @@ export const Canvas = ({
         originY: "center",
         width: displayWidth * 0.8,
       });
-      
+
       canvas.add(welcomeText);
       canvas.setActiveObject(welcomeText);
     }
@@ -122,29 +175,29 @@ export const Canvas = ({
   useEffect(() => {
     if (fabricCanvasRef.current) {
       fabricCanvasRef.current.backgroundColor = getThemeBackground();
-      
+
       // Update brush color when theme changes
       if (fabricCanvasRef.current.freeDrawingBrush) {
         fabricCanvasRef.current.freeDrawingBrush.color = theme === "minimal" ? "#333333" : "#ffffff";
       }
-      
+
       fabricCanvasRef.current.renderAll();
     }
   }, [theme]);
 
   return (
     <div className="canvas-wrapper flex items-center justify-center">
-      <div 
+      <div
         className="canvas-container relative rounded-lg overflow-hidden shadow-elegant border-2 border-border/50"
         style={{
           background: getThemeBackground(),
         }}
       >
-        <canvas 
-          ref={canvasRef} 
+        <canvas
+          ref={canvasRef}
           className="block"
         />
-        
+
         {/* Format indicator */}
         <div className="absolute top-2 left-2 z-10">
           <div className="glass rounded-full px-3 py-1 text-xs font-medium">

@@ -6,10 +6,19 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Palette, Download, Smartphone, Square } from "lucide-react";
+import { Palette, Download, Smartphone, Square, Plus } from "lucide-react";
 
 export type CanvasFormat = "post" | "story";
-export type Theme = "instagram" | "minimal" | "dark";
+export type Theme =
+  | "instagram"
+  | "minimal"
+  | "dark"
+  | "ocean"
+  | "sunset"
+  | "forest"
+  | "neon"
+  | "pastel"
+  | "royal";
 
 export interface Project {
   id: string;
@@ -23,11 +32,14 @@ export interface Project {
 }
 
 export const InstagramEditor = () => {
-  const [projects, setProjects] = useLocalStorage<Project[]>("instagram-projects", []);
+  const [projects, setProjects] = useLocalStorage<Project[]>(
+    "instagram-projects",
+    []
+  );
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [canvasFormat, setCanvasFormat] = useState<CanvasFormat>("post");
   const [activeTheme, setActiveTheme] = useState<Theme>("instagram");
-  const [fabricCanvas, setFabricCanvas] = useState<any>(null);
+  const [fabricCanvases, setFabricCanvases] = useState<any[]>([]);
 
   // Create new project
   const createNewProject = () => {
@@ -39,35 +51,46 @@ export const InstagramEditor = () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     const updatedProjects = [newProject, ...projects];
     setProjects(updatedProjects);
     setCurrentProject(newProject);
     toast("New project created!");
   };
 
+  const deleteProject = (projectId: string) => {
+    const updatedProjects = projects.filter((p) => p.id !== projectId);
+    setProjects(updatedProjects);
+
+    if (currentProject?.id === projectId) {
+      setCurrentProject(updatedProjects[0] || null);
+    }
+    toast("Project deleted");
+  };
+
   // Save current project
   const saveProject = () => {
-    if (!currentProject || !fabricCanvas) return;
-    
-    const canvasData = fabricCanvas.toJSON();
-    const thumbnail = fabricCanvas.toDataURL({ 
-      format: 'png', 
-      quality: 0.8,
-      multiplier: 0.2
-    });
-    
+    if (!currentProject || fabricCanvases.length === 0) return;
+
+    const updatedFabricData = fabricCanvases.map((fc) => ({
+      data: fc.toJSON(),
+      thumbnail: fc.toDataURL({
+        format: "png",
+        quality: 0.8,
+        multiplier: 0.2,
+      }),
+    }));
+
     const updatedProject = {
       ...currentProject,
-      canvasData,
-      thumbnail,
+      canvasData: updatedFabricData,
       updatedAt: new Date().toISOString(),
     };
-    
-    const updatedProjects = projects.map(p => 
+
+    const updatedProjects = projects.map((p) =>
       p.id === currentProject.id ? updatedProject : p
     );
-    
+
     setProjects(updatedProjects);
     setCurrentProject(updatedProject);
     toast("Project saved!");
@@ -81,22 +104,24 @@ export const InstagramEditor = () => {
     toast(`Loaded ${project.name}`);
   };
 
-  // Export canvas
+  // Export all canvases
   const exportCanvas = () => {
-    if (!fabricCanvas) return;
-    
-    const dataURL = fabricCanvas.toDataURL({
-      format: 'png',
-      quality: 1,
-      multiplier: canvasFormat === "post" ? 2 : 1.5
+    if (fabricCanvases.length === 0) return;
+
+    fabricCanvases.forEach((fc, index) => {
+      const dataURL = fc.toDataURL({
+        format: "png",
+        quality: 1,
+        multiplier: canvasFormat === "post" ? 2 : 1.5,
+      });
+
+      const link = document.createElement("a");
+      link.download = `instagram-${canvasFormat}-${index + 1}-${Date.now()}.png`;
+      link.href = dataURL;
+      link.click();
     });
-    
-    const link = document.createElement('a');
-    link.download = `instagram-${canvasFormat}-${Date.now()}.png`;
-    link.href = dataURL;
-    link.click();
-    
-    toast("Image downloaded!");
+
+    toast("All canvases downloaded!");
   };
 
   useEffect(() => {
@@ -107,24 +132,26 @@ export const InstagramEditor = () => {
     }
   }, [projects]);
 
-  const canvasDimensions = canvasFormat === "post" 
-    ? { width: 1080, height: 1080 } 
-    : { width: 1080, height: 1920 };
+  const canvasDimensions =
+    canvasFormat === "post"
+      ? { width: 1080, height: 1080 }
+      : { width: 1080, height: 1920 };
 
   return (
-    <div className="h-screen flex bg-gradient-subtle">
-      {/* Sidebar */}
-      <Sidebar 
+    <div className="h-screen flex bg-gradient-subtle overflow-hidden">
+      {/* Sidebar fixed on left */}
+      <Sidebar
         projects={projects}
         currentProject={currentProject}
         onLoadProject={loadProject}
         onCreateNew={createNewProject}
+        onDeleteProject={deleteProject}
       />
-      
-      {/* Main Editor */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="toolbar-container p-4 flex items-center justify-between">
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header fixed at top */}
+        <div className="p-4 flex items-center justify-between border-b border-border bg-background sticky top-0 z-20">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-playfair font-semibold text-foreground">
               {currentProject?.name || "Instagram Editor"}
@@ -134,7 +161,6 @@ export const InstagramEditor = () => {
                 variant={canvasFormat === "post" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setCanvasFormat("post")}
-                className="transition-smooth"
               >
                 <Square className="w-4 h-4 mr-1" />
                 Post
@@ -143,59 +169,88 @@ export const InstagramEditor = () => {
                 variant={canvasFormat === "story" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setCanvasFormat("story")}
-                className="transition-smooth"
               >
                 <Smartphone className="w-4 h-4 mr-1" />
                 Story
               </Button>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 mr-4">
               <Palette className="w-4 h-4 text-muted-foreground" />
               <select
                 value={activeTheme}
                 onChange={(e) => setActiveTheme(e.target.value as Theme)}
-                className="bg-background border border-border rounded-md px-3 py-1 text-sm transition-smooth focus:ring-2 focus:ring-primary"
+                className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-primary"
               >
                 <option value="instagram">Instagram</option>
                 <option value="minimal">Minimal</option>
                 <option value="dark">Dark</option>
+                <option value="ocean">Ocean</option>
+                <option value="sunset">Sunset</option>
+                <option value="forest">Forest</option>
+                <option value="neon">Neon</option>
+                <option value="pastel">Pastel</option>
+                <option value="royal">Royal</option>
               </select>
             </div>
             <Button onClick={saveProject} variant="outline" size="sm">
               Save
             </Button>
-            <Button onClick={exportCanvas} size="sm" className="bg-gradient-primary">
+            <Button
+              onClick={exportCanvas}
+              size="sm"
+              className="bg-gradient-primary"
+            >
               <Download className="w-4 h-4 mr-1" />
               Export
             </Button>
           </div>
         </div>
-        
-        {/* Canvas Area */}
-        <div className="flex-1 flex">
-          <div className="flex-1 p-6">
-            <Card className="canvas-container p-6 h-full flex items-center justify-center">
+
+        {/* Scrollable Canvas Area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {fabricCanvases.map((_, index) => (
+            <Card
+              key={index}
+              className="canvas-container p-6 mb-6 flex justify-center"
+            >
               <Canvas
                 width={canvasDimensions.width}
                 height={canvasDimensions.height}
                 theme={activeTheme}
                 format={canvasFormat}
                 project={currentProject}
-                onCanvasReady={setFabricCanvas}
+                onCanvasReady={(fc) => {
+                  const newArr = [...fabricCanvases];
+                  newArr[index] = fc;
+                  setFabricCanvases(newArr);
+                }}
               />
             </Card>
+          ))}
+
+          {/* Add new canvas */}
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setFabricCanvases([...fabricCanvases, null])}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Canvas
+            </Button>
           </div>
-          
-          {/* Toolbar */}
-          <Toolbar 
-            canvas={fabricCanvas}
-            theme={activeTheme}
-            format={canvasFormat}
-          />
         </div>
+      </div>
+
+      {/* Toolbar fixed on right */}
+      <div className="w-64 border-l border-border bg-background sticky top-0 h-screen">
+        <Toolbar
+          canvas={fabricCanvases[fabricCanvases.length - 1]}
+          theme={activeTheme}
+          format={canvasFormat}
+        />
       </div>
     </div>
   );
