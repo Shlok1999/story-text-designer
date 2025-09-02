@@ -19,28 +19,16 @@ import {
   Upload
 } from "lucide-react";
 import { Canvas as FabricCanvas, Textbox, FabricImage } from "fabric";
-import { CanvasFormat, Theme, Project, Page } from "./InstagramEditor";
+import { CanvasFormat, Theme } from "./InstagramEditor";
 import { toast } from "sonner";
 
 interface ToolbarProps {
   canvas: FabricCanvas | null;
   theme: Theme;
   format: CanvasFormat;
-  currentProject: Project | null;
-  currentPage: Page | null;
-  onPageSwitch: (page: Page) => void;
-  onPageDelete: (pageId: string) => void;
 }
 
-export const Toolbar = ({ 
-  canvas, 
-  theme, 
-  format, 
-  currentProject, 
-  currentPage, 
-  onPageSwitch, 
-  onPageDelete 
-}: ToolbarProps) => {
+export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
   const [activeObject, setActiveObject] = useState<any>(null);
   const [textContent, setTextContent] = useState("");
   const [fontSize, setFontSize] = useState(32);
@@ -239,55 +227,6 @@ export const Toolbar = ({
               </Button>
             </div>
           </div>
-
-          {/* Page Navigation */}
-          {currentProject && currentProject.pages.length > 1 && (
-            <div>
-              <h3 className="font-medium text-sm mb-3 text-foreground">Pages</h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                {currentProject.pages.map((page, index) => (
-                  <div
-                    key={page.id}
-                    className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-smooth ${
-                      currentPage?.id === page.id 
-                        ? 'bg-primary/10 border border-primary/20' 
-                        : 'hover:bg-accent/50 border border-transparent'
-                    }`}
-                    onClick={() => onPageSwitch(page)}
-                  >
-                    {page.thumbnail && (
-                      <img 
-                        src={page.thumbnail} 
-                        alt={page.name}
-                        className="w-8 h-8 object-cover rounded border"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">
-                        {page.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Page {index + 1}
-                      </p>
-                    </div>
-                    {currentProject.pages.length > 1 && (
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onPageDelete(page.id);
-                        }}
-                        variant="ghost"
-                        size="sm"
-                        className="p-1 h-6 w-6 text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <Separator />
 
