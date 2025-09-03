@@ -6,19 +6,19 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Palette, Download, Smartphone, Square, Plus } from "lucide-react";
+import { Palette, Download, Smartphone, Square, Plus, Trash2 } from "lucide-react";
 
 export type CanvasFormat = "post" | "story";
-export type Theme =
-  | "instagram"
-  | "minimal"
-  | "dark"
-  | "ocean"
-  | "sunset"
-  | "forest"
-  | "neon"
-  | "pastel"
-  | "royal";
+export type Theme = "instagram" | "minimal" | "dark" | "ocean" | "sunset" | "forest" | "neon" | "pastel" | "royal";
+
+export interface CanvasPage {
+  id: string;
+  format: CanvasFormat;
+  theme: Theme;
+  canvasData?: any;
+  thumbnail?: string;
+  name: string;
+}
 
 export interface Project {
   id: string;
@@ -28,66 +28,125 @@ export interface Project {
   thumbnail?: string;
   createdAt: string;
   updatedAt: string;
-  canvasData?: any;
+  pages: CanvasPage[];
 }
 
 export const InstagramEditor = () => {
-  const [projects, setProjects] = useLocalStorage<Project[]>(
-    "instagram-projects",
-    []
-  );
+  const [projects, setProjects] = useLocalStorage<Project[]>("instagram-projects", []);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [canvasFormat, setCanvasFormat] = useState<CanvasFormat>("post");
   const [activeTheme, setActiveTheme] = useState<Theme>("instagram");
-  const [fabricCanvases, setFabricCanvases] = useState<any[]>([]);
+  const [fabricCanvas, setFabricCanvas] = useState<any>(null);
+
+  // Get current page - add safe access
+  const currentPage = currentProject?.pages?.[currentPageIndex] || null;
 
   // Create new project
   const createNewProject = () => {
     const newProject: Project = {
       id: Date.now().toString(),
-      name: `Project ${projects.length + 1}`,
+      name: `Project ${(projects?.length || 0) + 1}`,
       format: canvasFormat,
       theme: activeTheme,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      pages: [
+        {
+          id: Date.now().toString(),
+          format: canvasFormat,
+          theme: activeTheme,
+          name: "Page 1"
+        }
+      ]
     };
 
-    const updatedProjects = [newProject, ...projects];
+    const updatedProjects = [newProject, ...(projects || [])];
     setProjects(updatedProjects);
     setCurrentProject(newProject);
+    setCurrentPageIndex(0);
     toast("New project created!");
   };
 
   const deleteProject = (projectId: string) => {
-    const updatedProjects = projects.filter((p) => p.id !== projectId);
+    const updatedProjects = (projects || []).filter(p => p.id !== projectId);
     setProjects(updatedProjects);
 
+    // If we're deleting the current project, clear it
     if (currentProject?.id === projectId) {
       setCurrentProject(updatedProjects[0] || null);
+      setCurrentPageIndex(0);
     }
     toast("Project deleted");
   };
 
-  // Save current project
-  const saveProject = () => {
-    if (!currentProject || fabricCanvases.length === 0) return;
-
-    const updatedFabricData = fabricCanvases.map((fc) => ({
-      data: fc.toJSON(),
-      thumbnail: fc.toDataURL({
-        format: "png",
-        quality: 0.8,
-        multiplier: 0.2,
-      }),
-    }));
+  // Add new page to current project
+  const addNewPage = () => {
+    if (!currentProject) return;
+    
+    const newPage: CanvasPage = {
+      id: Date.now().toString(),
+      format: canvasFormat,
+      theme: activeTheme,
+      name: `Page ${(currentProject.pages?.length || 0) + 1}`
+    };
 
     const updatedProject = {
       ...currentProject,
-      canvasData: updatedFabricData,
+      pages: [...(currentProject.pages || []), newPage],
       updatedAt: new Date().toISOString(),
     };
 
-    const updatedProjects = projects.map((p) =>
+    setProjects((projects || []).map(p => p.id === currentProject.id ? updatedProject : p));
+    setCurrentProject(updatedProject);
+    setCurrentPageIndex((updatedProject.pages?.length || 1) - 1);
+    toast("New page added!");
+  };
+
+  // Delete current page
+  const deleteCurrentPage = () => {
+    if (!currentProject || (currentProject.pages?.length || 0) <= 1) return;
+    
+    const updatedPages = (currentProject.pages || []).filter((_, index) => index !== currentPageIndex);
+    const updatedProject = {
+      ...currentProject,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newPageIndex = Math.min(currentPageIndex, (updatedPages.length || 1) - 1);
+    
+    setProjects((projects || []).map(p => p.id === currentProject.id ? updatedProject : p));
+    setCurrentProject(updatedProject);
+    setCurrentPageIndex(newPageIndex);
+    toast("Page deleted");
+  };
+
+  // Save current page
+  const saveProject = () => {
+    if (!currentProject || !fabricCanvas || !currentPage) return;
+    
+    const canvasData = fabricCanvas.toJSON();
+    const thumbnail = fabricCanvas.toDataURL({
+      format: 'png',
+      quality: 0.8,
+      multiplier: 0.2
+    });
+
+    const updatedPages = [...(currentProject.pages || [])];
+    updatedPages[currentPageIndex] = {
+      ...updatedPages[currentPageIndex],
+      canvasData,
+      thumbnail,
+    };
+
+    const updatedProject = {
+      ...currentProject,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedProjects = (projects || []).map(p =>
       p.id === currentProject.id ? updatedProject : p
     );
 
@@ -95,63 +154,122 @@ export const InstagramEditor = () => {
     setCurrentProject(updatedProject);
     toast("Project saved!");
   };
+  
+  //Save project every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      saveProject();
+    }, 100000);
+
+    return () => clearInterval(interval);
+  }, [currentProject, fabricCanvas, currentPage]);
 
   // Load project
   const loadProject = (project: Project) => {
     setCurrentProject(project);
     setCanvasFormat(project.format);
     setActiveTheme(project.theme);
+    setCurrentPageIndex(0);
     toast(`Loaded ${project.name}`);
   };
 
-  // Export all canvases
+  // Export canvas
   const exportCanvas = () => {
-    if (fabricCanvases.length === 0) return;
+    if (!fabricCanvas) return;
 
-    fabricCanvases.forEach((fc, index) => {
-      const dataURL = fc.toDataURL({
-        format: "png",
-        quality: 1,
-        multiplier: canvasFormat === "post" ? 2 : 1.5,
-      });
-
-      const link = document.createElement("a");
-      link.download = `instagram-${canvasFormat}-${index + 1}-${Date.now()}.png`;
-      link.href = dataURL;
-      link.click();
+    const dataURL = fabricCanvas.toDataURL({
+      format: 'png',
+      quality: 1,
+      multiplier: canvasFormat === "post" ? 2 : 1.5
     });
 
-    toast("All canvases downloaded!");
+    const link = document.createElement('a');
+    link.download = `instagram-${canvasFormat}-${Date.now()}.png`;
+    link.href = dataURL;
+    link.click();
+
+    toast("Image downloaded!");
+  };
+
+  // Update canvas format for current page
+  const updateCanvasFormat = (format: CanvasFormat) => {
+    if (!currentProject || !currentPage) return;
+    
+    setCanvasFormat(format);
+    
+    const updatedPages = [...(currentProject.pages || [])];
+    updatedPages[currentPageIndex] = {
+      ...updatedPages[currentPageIndex],
+      format,
+    };
+
+    const updatedProject = {
+      ...currentProject,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setProjects((projects || []).map(p => p.id === currentProject.id ? updatedProject : p));
+    setCurrentProject(updatedProject);
+  };
+
+  // Update theme for current page
+  const updateTheme = (theme: Theme) => {
+    if (!currentProject || !currentPage) return;
+    
+    setActiveTheme(theme);
+    
+    const updatedPages = [...(currentProject.pages || [])];
+    updatedPages[currentPageIndex] = {
+      ...updatedPages[currentPageIndex],
+      theme,
+    };
+
+    const updatedProject = {
+      ...currentProject,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setProjects((projects || []).map(p => p.id === currentProject.id ? updatedProject : p));
+    setCurrentProject(updatedProject);
   };
 
   useEffect(() => {
-    if (projects.length === 0) {
+    if (!projects || projects.length === 0) {
       createNewProject();
     } else if (!currentProject) {
       setCurrentProject(projects[0]);
+      setCurrentPageIndex(0);
     }
   }, [projects]);
 
-  const canvasDimensions =
-    canvasFormat === "post"
-      ? { width: 1080, height: 1080 }
-      : { width: 1080, height: 1920 };
+  useEffect(() => {
+    if (currentPage) {
+      setCanvasFormat(currentPage.format);
+      setActiveTheme(currentPage.theme);
+    }
+  }, [currentPage]);
+
+  const canvasDimensions = canvasFormat === "post"
+    ? { width: 1080, height: 1080 }
+    : { width: 1080, height: 1920 };
 
   return (
-    <div className="h-screen flex bg-gradient-subtle overflow-hidden">
-      {/* Sidebar fixed on left */}
+    <div className="h-screen flex bg-gradient-subtle">
+      {/* Sidebar */}
       <Sidebar
-        projects={projects}
+        projects={projects || []}
         currentProject={currentProject}
         onLoadProject={loadProject}
         onCreateNew={createNewProject}
         onDeleteProject={deleteProject}
       />
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header fixed at top */}
-        <div className="p-4 flex items-center justify-between border-b border-border bg-background sticky top-0 z-20">
+      {/* Main Editor */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="toolbar-container p-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-playfair font-semibold text-foreground">
               {currentProject?.name || "Instagram Editor"}
@@ -160,7 +278,8 @@ export const InstagramEditor = () => {
               <Button
                 variant={canvasFormat === "post" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setCanvasFormat("post")}
+                onClick={() => updateCanvasFormat("post")}
+                className="transition-smooth"
               >
                 <Square className="w-4 h-4 mr-1" />
                 Post
@@ -168,7 +287,8 @@ export const InstagramEditor = () => {
               <Button
                 variant={canvasFormat === "story" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setCanvasFormat("story")}
+                onClick={() => updateCanvasFormat("story")}
+                className="transition-smooth"
               >
                 <Smartphone className="w-4 h-4 mr-1" />
                 Story
@@ -181,8 +301,8 @@ export const InstagramEditor = () => {
               <Palette className="w-4 h-4 text-muted-foreground" />
               <select
                 value={activeTheme}
-                onChange={(e) => setActiveTheme(e.target.value as Theme)}
-                className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-primary"
+                onChange={(e) => updateTheme(e.target.value as Theme)}
+                className="bg-background border border-border rounded-md px-3 py-1 text-sm transition-smooth focus:ring-2 focus:ring-primary"
               >
                 <option value="instagram">Instagram</option>
                 <option value="minimal">Minimal</option>
@@ -198,59 +318,75 @@ export const InstagramEditor = () => {
             <Button onClick={saveProject} variant="outline" size="sm">
               Save
             </Button>
-            <Button
-              onClick={exportCanvas}
-              size="sm"
-              className="bg-gradient-primary"
-            >
+
+            <Button onClick={exportCanvas} size="sm" className="bg-gradient-primary">
               <Download className="w-4 h-4 mr-1" />
               Export
             </Button>
           </div>
         </div>
 
-        {/* Scrollable Canvas Area */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {fabricCanvases.map((_, index) => (
-            <Card
-              key={index}
-              className="canvas-container p-6 mb-6 flex justify-center"
-            >
-              <Canvas
-                width={canvasDimensions.width}
-                height={canvasDimensions.height}
-                theme={activeTheme}
-                format={canvasFormat}
-                project={currentProject}
-                onCanvasReady={(fc) => {
-                  const newArr = [...fabricCanvases];
-                  newArr[index] = fc;
-                  setFabricCanvases(newArr);
-                }}
-              />
-            </Card>
-          ))}
-
-          {/* Add new canvas */}
-          <div className="flex justify-center">
+        {/* Page Navigation */}
+        {currentProject && (currentProject.pages?.length || 0) > 0 && (
+          <div className="px-4 py-2 bg-muted flex items-center gap-2">
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {(currentProject.pages || []).map((page, index) => (
+                <Button
+                  key={page.id}
+                  variant={currentPageIndex === index ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPageIndex(index)}
+                  className="min-w-[100px] transition-smooth"
+                >
+                  {page.name}
+                </Button>
+              ))}
+            </div>
             <Button
               variant="outline"
-              onClick={() => setFabricCanvases([...fabricCanvases, null])}
+              size="sm"
+              onClick={addNewPage}
+              className="transition-smooth"
             >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Canvas
+              <Plus className="w-4 h-4" />
             </Button>
+            {(currentProject.pages?.length || 0) > 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={deleteCurrentPage}
+                className="transition-smooth text-destructive"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Toolbar fixed on right */}
-      <div className="w-64 border-l border-border bg-background sticky top-0 h-screen">
-        <Toolbar
-          canvas={fabricCanvases[fabricCanvases.length - 1]}
-          theme={activeTheme}
-          format={canvasFormat}
-        />
+        {/* Canvas Area */}
+        <div className="flex-1 flex">
+          <div className="flex-1 p-6">
+            <Card className="canvas-container p-6 h-full flex flex-col items-center justify-center">
+              {currentPage && (
+                <Canvas
+                  width={canvasDimensions.width}
+                  height={canvasDimensions.height}
+                  theme={activeTheme}
+                  format={canvasFormat}
+                  page={currentPage}
+                  onCanvasReady={setFabricCanvas}
+                />
+              )}
+            </Card>
+          </div>
+
+          {/* Toolbar */}
+          <Toolbar
+            canvas={fabricCanvas}
+            theme={activeTheme}
+            format={canvasFormat}
+          />
+        </div>
       </div>
     </div>
   );
