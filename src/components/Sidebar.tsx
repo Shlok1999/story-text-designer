@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, Calendar, Trash2, MoreVertical } from "lucide-react";
 import { Project } from "./InstagramEditor";
 import { formatDistanceToNow } from "date-fns";
+import { LogOut, User } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +40,16 @@ export const Sidebar = ({
   onCreateNew,
   onDeleteProject
 }: SidebarProps) => {
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
   return (
     <div className="sidebar-container w-80 flex flex-col bg-sidebar border-r border-border">
       {/* Header */}
@@ -179,6 +191,27 @@ export const Sidebar = ({
       
       {/* Footer */}
       <div className="p-4 border-t border-border bg-sidebar-footer">
+        {/* User info and logout button */}
+        {user && (
+          <div className="flex items-center justify-between mb-3 p-2 rounded-lg bg-muted/50">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium truncate max-w-[120px]">
+                {user.name}
+              </span>
+            </div>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full"
+              title="Logout"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
+        
         <div className="text-xs text-muted-foreground text-center">
           <p className="font-medium">Instagram Post Editor</p>
           <p className="mt-1">Create stunning posts & stories</p>
