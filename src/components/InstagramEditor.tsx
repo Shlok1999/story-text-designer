@@ -80,6 +80,15 @@ export const InstagramEditor = () => {
     toast("Project deleted");
   };
 
+  // In InstagramEditor.tsx, add this useEffect to handle canvas disposal
+useEffect(() => {
+  return () => {
+    if (fabricCanvas) {
+      fabricCanvas.dispose();
+    }
+  };
+}, []);
+
   // Add new page to current project
   const addNewPage = () => {
     if (!currentProject) return;

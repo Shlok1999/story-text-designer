@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas as FabricCanvas, Textbox } from "fabric";
 import { CanvasFormat, Theme, CanvasPage } from "./InstagramEditor";
 import { toast } from "sonner";
@@ -22,71 +22,51 @@ export const Canvas = ({
 }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Theme backgrounds
-  const getThemeBackground = (canvas?: FabricCanvas) => {
+  // Theme backgrounds - Fixed version
+  const getThemeBackground = (canvas: FabricCanvas | null = null) => {
+    // Return solid colors for themes that don't need gradients
     switch (theme) {
-      case "instagram":
-        if (!canvas) return "#833ab4";
-        const instagramGradient = canvas.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!);
-        instagramGradient.addColorStop(0, "#833ab4");
-        instagramGradient.addColorStop(0.5, "#fd1d1d");
-        instagramGradient.addColorStop(1, "#fcb045");
-        return instagramGradient;
-      case "ocean":
-        if (!canvas) return "#2E3192";
-        const oceanGradient = canvas.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!);
-        oceanGradient.addColorStop(0, "#2E3192");
-        oceanGradient.addColorStop(1, "#1BFFFF");
-        return oceanGradient;
-      case "sunset":
-        if (!canvas) return "#ff7e5f";
-        const sunsetGradient = canvas.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!);
-        sunsetGradient.addColorStop(0, "#ff7e5f");
-        sunsetGradient.addColorStop(1, "#feb47b");
-        return sunsetGradient;
-      case "forest":
-        if (!canvas) return "#134E5E";
-        const forestGradient = canvas.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!);
-        forestGradient.addColorStop(0, "#134E5E");
-        forestGradient.addColorStop(1, "#71B280");
-        return forestGradient;
-      case "neon":
-        if (!canvas) return "#00f260";
-        const neonGradient = canvas.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!);
-        neonGradient.addColorStop(0, "#00f260");
-        neonGradient.addColorStop(1, "#0575e6");
-        return neonGradient;
-      case "pastel":
-        if (!canvas) return "#a1c4fd";
-        const pastelGradient = canvas.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!);
-        pastelGradient.addColorStop(0, "#a1c4fd");
-        pastelGradient.addColorStop(1, "#c2e9fb");
-        return pastelGradient;
-      case "royal":
-        if (!canvas) return "#141E30";
-        const royalGradient = canvas.contextContainer.createLinearGradient(0, 0, canvas.width!, canvas.height!);
-        royalGradient.addColorStop(0, "#141E30");
-        royalGradient.addColorStop(1, "#243B55");
-        return royalGradient;
       case "minimal":
         return "#ffffff";
       case "dark":
         return "#1a1a1a";
+      case "instagram":
+        return "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)";
+      case "ocean":
+        return "linear-gradient(45deg, #2E3192, #1BFFFF)";
+      case "sunset":
+        return "linear-gradient(45deg, #ff7e5f, #feb47b)";
+      case "forest":
+        return "linear-gradient(45deg, #134E5E, #71B280)";
+      case "neon":
+        return "linear-gradient(45deg, #00f260, #0575e6)";
+      case "pastel":
+        return "linear-gradient(45deg, #a1c4fd, #c2e9fb)";
+      case "royal":
+        return "linear-gradient(45deg, #141E30, #243B55)";
       default:
         return "#ffffff";
     }
   };
 
-  useEffect(() => {
+  // Get text color based on theme
+  const getTextColor = () => {
+    switch (theme) {
+      case "minimal":
+      case "pastel":
+        return "#333333";
+      default:
+        return "#ffffff";
+    }
+  };
+
+  // Initialize canvas
+  const initializeCanvas = () => {
     if (!canvasRef.current) return;
 
-    // Dispose existing canvas
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.dispose();
-    }
-
-    // Calculate display size (maintain aspect ratio, max 600px height)
+    // Calculate display size
     const maxDisplayHeight = 600;
     const aspectRatio = width / height;
     const displayHeight = Math.min(maxDisplayHeight, height);
@@ -96,51 +76,63 @@ export const Canvas = ({
     const canvas = new FabricCanvas(canvasRef.current, {
       width: displayWidth,
       height: displayHeight,
+      backgroundColor: getThemeBackground(),
     });
 
-    // Set actual dimensions for export (higher resolution)
-    canvas.setDimensions({
-      width: displayWidth,
-      height: displayHeight
-    }, {
-      cssOnly: false
-    });
-
-    // Set background
-    canvas.backgroundColor = getThemeBackground(canvas);
+    // Set dimensions
+    canvas.setDimensions({ width: displayWidth, height: displayHeight }, { cssOnly: false });
 
     // Store reference
     fabricCanvasRef.current = canvas;
+    setIsInitialized(true);
 
-    // Load page data if available
-    const loadCanvasData = () => {
-      if (page?.canvasData) {
-        canvas.loadFromJSON(page.canvasData, () => {
-          canvas.renderAll(); // Force render after loading
-        });
-      } else {
-        // Add welcome text for new pages
-        const welcomeText = new Textbox("Tap to edit text", {
-          left: displayWidth / 2,
-          top: displayHeight / 2,
-          fontSize: 32,
-          fill: theme === "minimal" || theme === "pastel" ? "#333333" : "#ffffff",
-          fontFamily: "Inter",
-          textAlign: "center",
-          originX: "center",
-          originY: "center",
-          width: displayWidth * 0.8,
-        });
-
-        canvas.add(welcomeText);
-        canvas.setActiveObject(welcomeText);
-        canvas.renderAll(); // Force render after adding text
-      }
-    };
-
-    loadCanvasData();
+    // Load page data or create default content
+    loadCanvasData(canvas);
 
     // Setup canvas events
+    setupCanvasEvents(canvas);
+
+    // Initialize drawing brush
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = getTextColor();
+      canvas.freeDrawingBrush.width = 3;
+    }
+
+    onCanvasReady(canvas);
+    toast.success(`${format} canvas ready!`);
+  };
+
+  // Load canvas data
+  const loadCanvasData = (canvas: FabricCanvas) => {
+    if (page?.canvasData) {
+      canvas.loadFromJSON(page.canvasData, () => {
+        canvas.renderAll();
+      });
+    } else {
+      // Add welcome text for new pages
+      const displayWidth = canvas.width || 500;
+      const displayHeight = canvas.height || 500;
+      
+      const welcomeText = new Textbox("Tap to edit text", {
+        left: displayWidth / 2,
+        top: displayHeight / 2,
+        fontSize: 32,
+        fill: getTextColor(),
+        fontFamily: "Inter",
+        textAlign: "center",
+        originX: "center",
+        originY: "center",
+        width: displayWidth * 0.8,
+      });
+
+      canvas.add(welcomeText);
+      canvas.setActiveObject(welcomeText);
+      canvas.renderAll();
+    }
+  };
+
+  // Setup canvas events
+  const setupCanvasEvents = (canvas: FabricCanvas) => {
     canvas.on('selection:created', () => {
       console.log('Object selected');
     });
@@ -148,86 +140,61 @@ export const Canvas = ({
     canvas.on('object:modified', () => {
       console.log('Object modified');
     });
+  };
 
-    // Initialize drawing brush
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = theme === "minimal" || theme === "pastel" ? "#333333" : "#ffffff";
-      canvas.freeDrawingBrush.width = 3;
+  // Update canvas background
+  const updateCanvasBackground = () => {
+    if (fabricCanvasRef.current) {
+      const background = getThemeBackground();
+      fabricCanvasRef.current.backgroundColor = background;
+      
+      // Also update the container background for CSS gradients
+      const container = canvasRef.current?.parentElement;
+      if (container) {
+        container.style.background = background;
+      }
+
+      // Update brush color
+      if (fabricCanvasRef.current.freeDrawingBrush) {
+        fabricCanvasRef.current.freeDrawingBrush.color = getTextColor();
+      }
+
+      fabricCanvasRef.current.renderAll();
     }
+  };
 
-    onCanvasReady(canvas);
-    toast(`${format} canvas ready!`);
+  useEffect(() => {
+    initializeCanvas();
 
     return () => {
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.dispose();
         fabricCanvasRef.current = null;
+        setIsInitialized(false);
       }
     };
-  }, [width, height, theme, format, page?.id]);
+  }, [width, height, format]);
 
-  // Update when page changes - this ensures the canvas re-renders
+  // Update when page changes
   useEffect(() => {
-    if (fabricCanvasRef.current && page) {
-      // Clear the canvas first
-      fabricCanvasRef.current.clear();
-      
-      // Set the background
-      fabricCanvasRef.current.backgroundColor = getThemeBackground(fabricCanvasRef.current);
-      
-      // Load the page data
-      if (page.canvasData) {
-        fabricCanvasRef.current.loadFromJSON(page.canvasData, () => {
-          fabricCanvasRef.current?.renderAll(); // Force render
-        });
-      } else {
-        // Add default content for empty pages
-        const displayWidth = fabricCanvasRef.current.width || 500;
-        const displayHeight = fabricCanvasRef.current.height || 500;
-        
-        const welcomeText = new Textbox("Tap to edit text", {
-          left: displayWidth / 2,
-          top: displayHeight / 2,
-          fontSize: 32,
-          fill: theme === "minimal" || theme === "pastel" ? "#333333" : "#ffffff",
-          fontFamily: "Inter",
-          textAlign: "center",
-          originX: "center",
-          originY: "center",
-          width: displayWidth * 0.8,
-        });
-
-        fabricCanvasRef.current.add(welcomeText);
-        fabricCanvasRef.current.renderAll(); // Force render
-      }
-
-      // Update brush color
-      if (fabricCanvasRef.current.freeDrawingBrush) {
-        fabricCanvasRef.current.freeDrawingBrush.color = theme === "minimal" || theme === "pastel" ? "#333333" : "#ffffff";
-      }
+    if (fabricCanvasRef.current && page && isInitialized) {
+      loadCanvasData(fabricCanvasRef.current);
     }
-  }, [page?.id, theme]);
+  }, [page?.id, isInitialized]);
 
   // Update theme when it changes
   useEffect(() => {
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.backgroundColor = getThemeBackground(fabricCanvasRef.current);
-      
-      // Update brush color when theme changes
-      if (fabricCanvasRef.current.freeDrawingBrush) {
-        fabricCanvasRef.current.freeDrawingBrush.color = theme === "minimal" || theme === "pastel" ? "#333333" : "#ffffff";
-      }
-
-      fabricCanvasRef.current.renderAll(); // Force render
+    if (fabricCanvasRef.current && isInitialized) {
+      updateCanvasBackground();
     }
-  }, [theme]);
+  }, [theme, isInitialized]);
 
   return (
     <div className="canvas-wrapper flex items-center justify-center">
       <div
         className="canvas-container relative rounded-lg overflow-hidden shadow-elegant border-2 border-border/50"
         style={{
-          background: getThemeBackground(fabricCanvasRef.current || undefined),
+          background: getThemeBackground(),
         }}
       >
         <canvas
@@ -245,4 +212,3 @@ export const Canvas = ({
     </div>
   );
 };
-//End
