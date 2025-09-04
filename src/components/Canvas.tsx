@@ -25,31 +25,33 @@ export const Canvas = ({
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Theme backgrounds - Fixed version
-  const getThemeBackground = (canvas: FabricCanvas | null = null) => {
-    // Return solid colors for themes that don't need gradients
-    switch (theme) {
-      case "minimal":
-        return "#ffffff";
-      case "dark":
-        return "#1a1a1a";
-      case "instagram":
-        return "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)";
-      case "ocean":
-        return "linear-gradient(45deg, #2E3192, #1BFFFF)";
-      case "sunset":
-        return "linear-gradient(45deg, #ff7e5f, #feb47b)";
-      case "forest":
-        return "linear-gradient(45deg, #134E5E, #71B280)";
-      case "neon":
-        return "linear-gradient(45deg, #00f260, #0575e6)";
-      case "pastel":
-        return "linear-gradient(45deg, #a1c4fd, #c2e9fb)";
-      case "royal":
-        return "linear-gradient(45deg, #141E30, #243B55)";
-      default:
-        return "#ffffff";
-    }
-  };
+  // Canvas.tsx - Update the getThemeBackground function
+const getThemeBackground = (canvas: FabricCanvas | null = null) => {
+  // For Fabric.js, we need to handle gradients differently
+  // Return solid colors for now, or implement proper gradient handling
+  switch (theme) {
+    case "minimal":
+      return "#ffffff";
+    case "dark":
+      return "#1a1a1a";
+    case "instagram":
+      return "#833ab4"; // Use solid color instead of gradient
+    case "ocean":
+      return "#2E3192";
+    case "sunset":
+      return "#ff7e5f";
+    case "forest":
+      return "#134E5E";
+    case "neon":
+      return "#00f260";
+    case "pastel":
+      return "#a1c4fd";
+    case "royal":
+      return "#141E30";
+    default:
+      return "#ffffff";
+  }
+};
 
   // Get text color based on theme
   const getTextColor = () => {
@@ -63,8 +65,15 @@ export const Canvas = ({
   };
 
   // Initialize canvas
+  // Initialize canvas - UPDATED
   const initializeCanvas = () => {
     if (!canvasRef.current) return;
+
+    // Clean up existing canvas first
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.dispose();
+      fabricCanvasRef.current = null;
+    }
 
     // Calculate display size
     const maxDisplayHeight = 600;
@@ -102,10 +111,17 @@ export const Canvas = ({
     toast.success(`${format} canvas ready!`);
   };
 
-  // Load canvas data
+  // Load canvas data - UPDATED to handle async loading
   const loadCanvasData = (canvas: FabricCanvas) => {
     if (page?.canvasData) {
+      // Clear existing content first
+      canvas.clear();
+      
+      // Load from JSON
       canvas.loadFromJSON(page.canvasData, () => {
+        canvas.renderAll();
+        // Update background after loading
+        canvas.backgroundColor = getThemeBackground();
         canvas.renderAll();
       });
     } else {
@@ -143,6 +159,7 @@ export const Canvas = ({
   };
 
   // Update canvas background
+  // Update canvas background - UPDATED
   const updateCanvasBackground = () => {
     if (fabricCanvasRef.current) {
       const background = getThemeBackground();
@@ -159,10 +176,18 @@ export const Canvas = ({
         fabricCanvasRef.current.freeDrawingBrush.color = getTextColor();
       }
 
+      // Update text color for all text objects
+      fabricCanvasRef.current.getObjects().forEach(obj => {
+        if (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text') {
+          obj.set('fill', getTextColor());
+        }
+      });
+
       fabricCanvasRef.current.renderAll();
     }
   };
 
+  // Initialize on mount and when format changes
   useEffect(() => {
     initializeCanvas();
 
@@ -175,14 +200,14 @@ export const Canvas = ({
     };
   }, [width, height, format]);
 
-  // Update when page changes
+   // Update when page changes - UPDATED
   useEffect(() => {
     if (fabricCanvasRef.current && page && isInitialized) {
       loadCanvasData(fabricCanvasRef.current);
     }
   }, [page?.id, isInitialized]);
 
-  // Update theme when it changes
+  // Update theme when it changes - UPDATED
   useEffect(() => {
     if (fabricCanvasRef.current && isInitialized) {
       updateCanvasBackground();

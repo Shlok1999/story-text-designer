@@ -173,8 +173,26 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [currentProject, fabricCanvas, currentPage]);
 
-  // Load project
+
+  // Add this useEffect to properly handle canvas disposal
+  useEffect(() => {
+    return () => {
+      if (fabricCanvas) {
+        fabricCanvas.dispose();
+        setFabricCanvas(null);
+      }
+    };
+  }, []);
+
+
+  // Update the loadProject function to reset canvas
   const loadProject = (project: Project) => {
+    // Dispose of current canvas if it exists
+    if (fabricCanvas) {
+      fabricCanvas.dispose();
+      setFabricCanvas(null);
+    }
+    
     setCurrentProject(project);
     setCanvasFormat(project.format);
     setActiveTheme(project.theme);
