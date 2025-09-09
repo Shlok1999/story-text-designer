@@ -1,22 +1,21 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Type, 
-  Image, 
-  Palette, 
-  Trash2, 
-  AlignLeft, 
-  AlignCenter, 
+import {
+  Type,
+  Upload,
+  Trash2,
+  AlignLeft,
+  AlignCenter,
   AlignRight,
-  Bold,
-  Italic,
-  Upload
+  BringToFront,
+  SendToBack,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Canvas as FabricCanvas, Textbox, FabricImage } from "fabric";
 import { CanvasFormat, Theme } from "./InstagramEditor";
@@ -28,7 +27,7 @@ interface ToolbarProps {
   format: CanvasFormat;
 }
 
-export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
+export const Toolbar = ({ canvas, theme }: ToolbarProps) => {
   const [activeObject, setActiveObject] = useState<any>(null);
   const [textContent, setTextContent] = useState("");
   const [fontSize, setFontSize] = useState(32);
@@ -41,16 +40,12 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
     const handleSelection = () => {
       const active = canvas.getActiveObject() as any;
       setActiveObject(active);
-      
-      if (active && active.type === 'textbox') {
+
+      if (active && active.type === "textbox") {
         setTextContent(active.text || "");
         setFontSize(active.fontSize || 32);
         const fillColor = active.fill;
-        if (typeof fillColor === 'string') {
-          setTextColor(fillColor);
-        } else {
-          setTextColor("#ffffff");
-        }
+        setTextColor(typeof fillColor === "string" ? fillColor : "#ffffff");
       }
     };
 
@@ -58,21 +53,21 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
       setActiveObject(null);
     };
 
-    canvas.on('selection:created', handleSelection);
-    canvas.on('selection:updated', handleSelection);
-    canvas.on('selection:cleared', handleClearSelection);
+    canvas.on("selection:created", handleSelection);
+    canvas.on("selection:updated", handleSelection);
+    canvas.on("selection:cleared", handleClearSelection);
 
     return () => {
-      canvas.off('selection:created', handleSelection);
-      canvas.off('selection:updated', handleSelection);
-      canvas.off('selection:cleared', handleClearSelection);
+      canvas.off("selection:created", handleSelection);
+      canvas.off("selection:updated", handleSelection);
+      canvas.off("selection:cleared", handleClearSelection);
     };
   }, [canvas]);
 
   // Add text
   const addText = () => {
     if (!canvas) return;
-    
+
     const text = new Textbox("New text", {
       left: canvas.width / 2,
       top: canvas.height / 2,
@@ -84,7 +79,7 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
       originY: "center",
       width: canvas.width * 0.8,
     });
-    
+
     canvas.add(text);
     canvas.setActiveObject(text);
     canvas.renderAll();
@@ -93,10 +88,10 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
 
   // Add image
   const addImage = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file || !canvas) return;
@@ -104,81 +99,87 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const imgUrl = event.target?.result as string;
-        
-        FabricImage.fromURL(imgUrl).then((img) => {
-          // Scale image to fit canvas
-          const canvasAspect = canvas.width / canvas.height;
-          const imgAspect = img.width / img.height;
-          
-          let scale = 1;
-          if (imgAspect > canvasAspect) {
-            scale = (canvas.width * 0.6) / img.width;
-          } else {
-            scale = (canvas.height * 0.6) / img.height;
-          }
-          
-          img.scale(scale);
-          img.set({
-            left: canvas.width / 2,
-            top: canvas.height / 2,
-            originX: 'center',
-            originY: 'center',
+
+        FabricImage.fromURL(imgUrl)
+          .then((img) => {
+            const canvasAspect = canvas.width / canvas.height;
+            const imgAspect = img.width / img.height;
+
+            let scale = 1;
+            if (imgAspect > canvasAspect) {
+              scale = (canvas.width * 0.6) / img.width;
+            } else {
+              scale = (canvas.height * 0.6) / img.height;
+            }
+
+            img.scale(scale);
+            img.set({
+              left: canvas.width / 2,
+              top: canvas.height / 2,
+              originX: "center",
+              originY: "center",
+            });
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+            toast("Image added!");
+          })
+          .catch(() => {
+            toast.error("Failed to load image");
           });
-          
-          canvas.add(img);
-          canvas.setActiveObject(img);
-          canvas.renderAll();
-          toast("Image added!");
-        }).catch(() => {
-          toast.error("Failed to load image");
-        });
       };
-      
+
       reader.readAsDataURL(file);
     };
-    
+
     input.click();
   };
 
   // Update text content
   const updateText = () => {
-    if (!canvas || !activeObject || activeObject.type !== 'textbox') return;
-    
-    (activeObject as any).set('text', textContent);
+    const active = canvas?.getActiveObject();
+    if (!canvas || !active || active.type !== "textbox") return;
+
+    active.set("text", textContent);
     canvas.renderAll();
   };
 
   // Update font size
   const updateFontSize = (size: number) => {
-    if (!canvas || !activeObject || activeObject.type !== 'textbox') return;
-    
+    const active = canvas?.getActiveObject();
+    if (!canvas || !active || active.type !== "textbox") return;
+
     setFontSize(size);
-    (activeObject as any).set('fontSize', size);
+    active.set("fontSize", size);
     canvas.renderAll();
   };
 
   // Update text color
   const updateTextColor = (color: string) => {
-    if (!canvas || !activeObject || activeObject.type !== 'textbox') return;
-    
+    const active = canvas?.getActiveObject();
+    if (!canvas || !active || active.type !== "textbox") return;
+
     setTextColor(color);
-    (activeObject as any).set('fill', color);
+    active.set("fill", color);
     canvas.renderAll();
   };
 
   // Text alignment
-  const setTextAlign = (align: 'left' | 'center' | 'right') => {
-    if (!canvas || !activeObject || activeObject.type !== 'textbox') return;
-    
-    (activeObject as any).set('textAlign', align);
+  const setTextAlign = (align: "left" | "center" | "right") => {
+    const active = canvas?.getActiveObject();
+    if (!canvas || !active || active.type !== "textbox") return;
+
+    active.set("textAlign", align);
     canvas.renderAll();
   };
 
   // Delete active object
   const deleteObject = () => {
-    if (!canvas || !activeObject) return;
-    
-    canvas.remove(activeObject);
+    const active = canvas?.getActiveObject();
+    if (!canvas || !active) return;
+
+    canvas.remove(active);
     canvas.discardActiveObject();
     canvas.renderAll();
     setActiveObject(null);
@@ -188,15 +189,92 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
   // Clear canvas
   const clearCanvas = () => {
     if (!canvas) return;
-    
+
     canvas.clear();
-    canvas.backgroundColor = theme === "instagram" 
-      ? "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)"
-      : theme === "minimal" 
-      ? "#ffffff" 
-      : "#1a1a1a";
+    canvas.backgroundColor =
+      theme === "instagram"
+        ? "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)"
+        : theme === "minimal"
+        ? "#ffffff"
+        : "#1a1a1a";
     canvas.renderAll();
     toast("Canvas cleared!");
+  };
+
+  // Z-index helpers
+  const getSelectedObjects = (active: any) => {
+    if (!active) return [];
+    if (active.type === "activeSelection" && typeof active.getObjects === "function") {
+      return active.getObjects();
+    }
+    if (Array.isArray((active as any).objects)) {
+      return (active as any).objects;
+    }
+    return [active];
+  };
+
+  const bringToFront = () => {
+    if (!canvas) return;
+    const active = canvas.getActiveObject() as any;
+    if (!active) return toast.error("No selection");
+
+    const objs = getSelectedObjects(active);
+    const maxIndex = canvas.getObjects().length - 1;
+
+    objs.forEach((obj: any, i: number) => {
+      canvas.moveObjectTo(obj, Math.max(0, maxIndex - i));
+    });
+
+    canvas.renderAll();
+    toast("Brought to front!");
+  };
+
+  const sendToBack = () => {
+    if (!canvas) return;
+    const active = canvas.getActiveObject() as any;
+    if (!active) return toast.error("No selection");
+
+    const objs = getSelectedObjects(active);
+    objs.forEach((obj: any, i: number) => {
+      canvas.moveObjectTo(obj, i);
+    });
+
+    canvas.renderAll();
+    toast("Sent to back!");
+  };
+
+  const bringForward = () => {
+    if (!canvas) return;
+    const active = canvas.getActiveObject() as any;
+    if (!active) return toast.error("No selection");
+
+    const objs = getSelectedObjects(active);
+    objs.forEach((obj: any) => {
+      const idx = canvas.getObjects().indexOf(obj);
+      if (idx !== -1) {
+        canvas.moveObjectTo(obj, Math.min(idx + 1, canvas.getObjects().length - 1));
+      }
+    });
+
+    canvas.renderAll();
+    toast("Brought forward!");
+  };
+
+  const sendBackward = () => {
+    if (!canvas) return;
+    const active = canvas.getActiveObject() as any;
+    if (!active) return toast.error("No selection");
+
+    const objs = getSelectedObjects(active);
+    objs.forEach((obj: any) => {
+      const idx = canvas.getObjects().indexOf(obj);
+      if (idx !== -1) {
+        canvas.moveObjectTo(obj, Math.max(idx - 1, 0));
+      }
+    });
+
+    canvas.renderAll();
+    toast("Sent backward!");
   };
 
   return (
@@ -207,21 +285,11 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
           <div>
             <h3 className="font-medium text-sm mb-3 text-foreground">Tools</h3>
             <div className="grid grid-cols-2 gap-2">
-              <Button 
-                onClick={addText}
-                variant="outline" 
-                size="sm"
-                className="transition-smooth hover:bg-primary/10"
-              >
+              <Button onClick={addText} variant="outline" size="sm">
                 <Type className="w-4 h-4 mr-1" />
                 Text
               </Button>
-              <Button 
-                onClick={addImage}
-                variant="outline" 
-                size="sm"
-                className="transition-smooth hover:bg-primary/10"
-              >
+              <Button onClick={addImage} variant="outline" size="sm">
                 <Upload className="w-4 h-4 mr-1" />
                 Image
               </Button>
@@ -231,13 +299,15 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
           <Separator />
 
           {/* Text Properties */}
-          {activeObject && activeObject.type === 'textbox' && (
+          {activeObject && activeObject.type === "textbox" && (
             <div>
               <h3 className="font-medium text-sm mb-3 text-foreground">Text Properties</h3>
-              
+
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="text-content" className="text-xs">Content</Label>
+                  <Label htmlFor="text-content" className="text-xs">
+                    Content
+                  </Label>
                   <Textarea
                     id="text-content"
                     value={textContent}
@@ -252,7 +322,9 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
                 </div>
 
                 <div>
-                  <Label htmlFor="font-size" className="text-xs">Font Size</Label>
+                  <Label htmlFor="font-size" className="text-xs">
+                    Font Size
+                  </Label>
                   <Input
                     id="font-size"
                     type="number"
@@ -265,7 +337,9 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
                 </div>
 
                 <div>
-                  <Label htmlFor="text-color" className="text-xs">Color</Label>
+                  <Label htmlFor="text-color" className="text-xs">
+                    Color
+                  </Label>
                   <div className="flex items-center gap-2 mt-1">
                     <Input
                       id="text-color"
@@ -287,32 +361,38 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
                 <div>
                   <Label className="text-xs">Alignment</Label>
                   <div className="flex items-center gap-1 mt-1">
-                    <Button 
-                      onClick={() => setTextAlign('left')}
-                      variant="outline" 
-                      size="sm"
-                      className="p-2"
-                    >
+                    <Button onClick={() => setTextAlign("left")} variant="outline" size="sm" className="p-2">
                       <AlignLeft className="w-3 h-3" />
                     </Button>
-                    <Button 
-                      onClick={() => setTextAlign('center')}
-                      variant="outline" 
-                      size="sm"
-                      className="p-2"
-                    >
+                    <Button onClick={() => setTextAlign("center")} variant="outline" size="sm" className="p-2">
                       <AlignCenter className="w-3 h-3" />
                     </Button>
-                    <Button 
-                      onClick={() => setTextAlign('right')}
-                      variant="outline" 
-                      size="sm"
-                      className="p-2"
-                    >
+                    <Button onClick={() => setTextAlign("right")} variant="outline" size="sm" className="p-2">
                       <AlignRight className="w-3 h-3" />
                     </Button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Z-Index Controls */}
+          {activeObject && (
+            <div>
+              <h3 className="font-medium text-sm mb-3 text-foreground">Layering</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={bringToFront} variant="outline" size="sm" title="Bring to Front">
+                  <BringToFront className="w-4 h-4" />
+                </Button>
+                <Button onClick={sendToBack} variant="outline" size="sm" title="Send to Back">
+                  <SendToBack className="w-4 h-4" />
+                </Button>
+                <Button onClick={bringForward} variant="outline" size="sm" title="Bring Forward">
+                  <ArrowUp className="w-4 h-4" />
+                </Button>
+                <Button onClick={sendBackward} variant="outline" size="sm" title="Send Backward">
+                  <ArrowDown className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           )}
@@ -322,9 +402,9 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
             <h3 className="font-medium text-sm mb-3 text-foreground">Actions</h3>
             <div className="space-y-2">
               {activeObject && (
-                <Button 
+                <Button
                   onClick={deleteObject}
-                  variant="outline" 
+                  variant="outline"
                   size="sm"
                   className="w-full text-destructive hover:bg-destructive/10"
                 >
@@ -332,12 +412,7 @@ export const Toolbar = ({ canvas, theme, format }: ToolbarProps) => {
                   Delete Selected
                 </Button>
               )}
-              <Button 
-                onClick={clearCanvas}
-                variant="outline" 
-                size="sm"
-                className="w-full"
-              >
+              <Button onClick={clearCanvas} variant="outline" size="sm" className="w-full">
                 Clear Canvas
               </Button>
             </div>
