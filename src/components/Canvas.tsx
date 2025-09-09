@@ -24,34 +24,31 @@ export const Canvas = ({
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Theme backgrounds - Fixed version
-  // Canvas.tsx - Update the getThemeBackground function
-const getThemeBackground = (canvas: FabricCanvas | null = null) => {
-  // For Fabric.js, we need to handle gradients differently
-  // Return solid colors for now, or implement proper gradient handling
-  switch (theme) {
-    case "minimal":
-      return "#ffffff";
-    case "dark":
-      return "#1a1a1a";
-    case "instagram":
-      return "#833ab4"; // Use solid color instead of gradient
-    case "ocean":
-      return "#2E3192";
-    case "sunset":
-      return "#ff7e5f";
-    case "forest":
-      return "#134E5E";
-    case "neon":
-      return "#00f260";
-    case "pastel":
-      return "#a1c4fd";
-    case "royal":
-      return "#141E30";
-    default:
-      return "#ffffff";
-  }
-};
+  // Theme backgrounds
+  const getThemeBackground = (canvas: FabricCanvas | null = null) => {
+    switch (theme) {
+      case "minimal":
+        return "#ffffff";
+      case "dark":
+        return "#1a1a1a";
+      case "instagram":
+        return "#833ab4";
+      case "ocean":
+        return "#2E3192";
+      case "sunset":
+        return "#ff7e5f";
+      case "forest":
+        return "#134E5E";
+      case "neon":
+        return "#00f260";
+      case "pastel":
+        return "#a1c4fd";
+      case "royal":
+        return "#141E30";
+      default:
+        return "#ffffff";
+    }
+  };
 
   // Get text color based on theme
   const getTextColor = () => {
@@ -65,7 +62,6 @@ const getThemeBackground = (canvas: FabricCanvas | null = null) => {
   };
 
   // Initialize canvas
-  // Initialize canvas - UPDATED
   const initializeCanvas = () => {
     if (!canvasRef.current) return;
 
@@ -111,7 +107,7 @@ const getThemeBackground = (canvas: FabricCanvas | null = null) => {
     toast.success(`${format} canvas ready!`);
   };
 
-  // Load canvas data - UPDATED to handle async loading
+  // Load canvas data
   const loadCanvasData = (canvas: FabricCanvas) => {
     if (page?.canvasData) {
       // Clear existing content first
@@ -159,7 +155,6 @@ const getThemeBackground = (canvas: FabricCanvas | null = null) => {
   };
 
   // Update canvas background
-  // Update canvas background - UPDATED
   const updateCanvasBackground = () => {
     if (fabricCanvasRef.current) {
       const background = getThemeBackground();
@@ -187,7 +182,7 @@ const getThemeBackground = (canvas: FabricCanvas | null = null) => {
     }
   };
 
-  // Initialize on mount and when format changes
+  // Initialize on mount only
   useEffect(() => {
     initializeCanvas();
 
@@ -198,21 +193,40 @@ const getThemeBackground = (canvas: FabricCanvas | null = null) => {
         setIsInitialized(false);
       }
     };
-  }, [width, height, format]);
+  }, []); // Empty dependency array - initialize only once
 
-   // Update when page changes - UPDATED
+  // Update when page changes
   useEffect(() => {
     if (fabricCanvasRef.current && page && isInitialized) {
       loadCanvasData(fabricCanvasRef.current);
     }
   }, [page?.id, isInitialized]);
 
-  // Update theme when it changes - UPDATED
+  // Update theme when it changes
   useEffect(() => {
     if (fabricCanvasRef.current && isInitialized) {
       updateCanvasBackground();
     }
   }, [theme, isInitialized]);
+
+  // Update format when it changes
+  useEffect(() => {
+    if (fabricCanvasRef.current && isInitialized) {
+      // Calculate new display size
+      const maxDisplayHeight = 600;
+      const aspectRatio = width / height;
+      const displayHeight = Math.min(maxDisplayHeight, height);
+      const displayWidth = displayHeight * aspectRatio;
+      
+      // Update canvas dimensions
+      fabricCanvasRef.current.setDimensions(
+        { width: displayWidth, height: displayHeight }, 
+        { cssOnly: false }
+      );
+      
+      fabricCanvasRef.current.renderAll();
+    }
+  }, [format, width, height, isInitialized]);
 
   return (
     <div className="canvas-wrapper flex items-center justify-center">

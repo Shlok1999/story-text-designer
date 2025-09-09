@@ -42,8 +42,15 @@ export const InstagramEditor = () => {
   // Get current page - add safe access
   const currentPage = currentProject?.pages?.[currentPageIndex] || null;
 
+
   // Create new project
   const createNewProject = () => {
+    // Dispose of current canvas if it exists
+    if (fabricCanvas) {
+      fabricCanvas.dispose();
+      setFabricCanvas(null);
+    }
+
     const newProject: Project = {
       id: Date.now().toString(),
       name: `Project ${(projects?.length || 0) + 1}`,
@@ -81,18 +88,18 @@ export const InstagramEditor = () => {
   };
 
   // In InstagramEditor.tsx, add this useEffect to handle canvas disposal
-useEffect(() => {
-  return () => {
-    if (fabricCanvas) {
-      fabricCanvas.dispose();
-    }
-  };
-}, []);
+  useEffect(() => {
+    return () => {
+      if (fabricCanvas) {
+        fabricCanvas.dispose();
+      }
+    };
+  }, [fabricCanvas]);
 
   // Add new page to current project
   const addNewPage = () => {
     if (!currentProject) return;
-    
+
     const newPage: CanvasPage = {
       id: Date.now().toString(),
       format: canvasFormat,
@@ -115,7 +122,7 @@ useEffect(() => {
   // Delete current page
   const deleteCurrentPage = () => {
     if (!currentProject || (currentProject.pages?.length || 0) <= 1) return;
-    
+
     const updatedPages = (currentProject.pages || []).filter((_, index) => index !== currentPageIndex);
     const updatedProject = {
       ...currentProject,
@@ -124,7 +131,7 @@ useEffect(() => {
     };
 
     const newPageIndex = Math.min(currentPageIndex, (updatedPages.length || 1) - 1);
-    
+
     setProjects((projects || []).map(p => p.id === currentProject.id ? updatedProject : p));
     setCurrentProject(updatedProject);
     setCurrentPageIndex(newPageIndex);
@@ -134,7 +141,7 @@ useEffect(() => {
   // Save current page
   const saveProject = () => {
     if (!currentProject || !fabricCanvas || !currentPage) return;
-    
+
     const canvasData = fabricCanvas.toJSON();
     const thumbnail = fabricCanvas.toDataURL({
       format: 'png',
@@ -163,15 +170,17 @@ useEffect(() => {
     setCurrentProject(updatedProject);
     toast("Project saved!");
   };
-  
-  //Save project every 10 seconds
+
+  // Fix the save interval
   useEffect(() => {
     const interval = setInterval(() => {
-      saveProject();
-    }, 100000);
+      if (currentProject && fabricCanvas && currentPage) {
+        saveProject();
+      }
+    }, 10000); // Changed to 10 seconds
 
     return () => clearInterval(interval);
-  }, [currentProject, fabricCanvas, currentPage]);
+  }, [currentProject, fabricCanvas, currentPage]); // Add proper dependencies
 
 
   // Add this useEffect to properly handle canvas disposal
@@ -192,14 +201,13 @@ useEffect(() => {
       fabricCanvas.dispose();
       setFabricCanvas(null);
     }
-    
+
     setCurrentProject(project);
     setCanvasFormat(project.format);
     setActiveTheme(project.theme);
     setCurrentPageIndex(0);
     toast(`Loaded ${project.name}`);
   };
-
   // Export canvas
   const exportCanvas = () => {
     if (!fabricCanvas) return;
@@ -221,9 +229,9 @@ useEffect(() => {
   // Update canvas format for current page
   const updateCanvasFormat = (format: CanvasFormat) => {
     if (!currentProject || !currentPage) return;
-    
+
     setCanvasFormat(format);
-    
+
     const updatedPages = [...(currentProject.pages || [])];
     updatedPages[currentPageIndex] = {
       ...updatedPages[currentPageIndex],
@@ -243,9 +251,9 @@ useEffect(() => {
   // Update theme for current page
   const updateTheme = (theme: Theme) => {
     if (!currentProject || !currentPage) return;
-    
+
     setActiveTheme(theme);
-    
+
     const updatedPages = [...(currentProject.pages || [])];
     updatedPages[currentPageIndex] = {
       ...updatedPages[currentPageIndex],
@@ -396,6 +404,7 @@ useEffect(() => {
             <Card className="canvas-container p-6 h-full flex flex-col items-center justify-center">
               {currentPage && (
                 <Canvas
+                  key={currentPage?.id} // Add this to force re-render on page change
                   width={canvasDimensions.width}
                   height={canvasDimensions.height}
                   theme={activeTheme}
