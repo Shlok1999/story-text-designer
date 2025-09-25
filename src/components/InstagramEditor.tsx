@@ -177,7 +177,7 @@ export const InstagramEditor = () => {
       if (currentProject && fabricCanvas && currentPage) {
         saveProject();
       }
-    }, 100000); // Changed to 10 seconds
+    }, 100000); // Changed to 100 seconds
 
     return () => clearInterval(interval);
   }, [currentProject, fabricCanvas, currentPage]); // Add proper dependencies
